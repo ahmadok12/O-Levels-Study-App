@@ -1781,8 +1781,8 @@ SECTIONS.forEach(sec=>{
   });
 });
 const EXTRA_PAGES={};
-const SUBJ_SECTIONS={'5054':SECTIONS,'4024':MATH_SECTIONS};
-const SUBJ_CODES={'5054':ALL_CODES,'4024':MATH_CODES};
+const SUBJ_SECTIONS={'5054':SECTIONS};
+const SUBJ_CODES={'5054':ALL_CODES};
 const SUBJ_DEF={'5054':'3.2','4024':'M1.1'};
 const SUBJ_AL={'5054':'9702','4024':'9709','2210':'9618','7115':'9609','1123':'9093','3248':'9686','2058':'9488','2059':'9489','2069':'9239'};
 const dispCode=c=>String(c).replace(/^(?:CS|BS|EN|UR|IS|PK|GP|M)/,'');
@@ -3702,6 +3702,8 @@ MATH_SECTIONS.forEach(sec=>{
     };
   });
 });
+SUBJ_SECTIONS['4024']=MATH_SECTIONS;
+SUBJ_CODES['4024']=MATH_CODES;
 
 
 
