@@ -176,6 +176,19 @@ h3{margin:0;font-size:18px;font-weight:800;letter-spacing:-.25px;line-height:1.2
 .fr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 2px;font-size:.9em}
 .fr-n{border-bottom:1.2px solid currentColor;padding:0 4px 1px;line-height:1.15}
 .fr-d{padding:1px 4px 0;line-height:1.15}
+.m{font-family:var(--math);font-size:1.07em;line-height:1.18;color:inherit;display:inline}
+.m i{font-style:italic}
+.m sup,.m sub{font-size:.73em;line-height:0;position:relative;vertical-align:baseline}
+.m sup{top:-.46em}
+.m sub{bottom:-.22em}
+.m .fr{font-size:.84em;vertical-align:middle;margin:0 2px}
+.rad{display:inline-flex;align-items:baseline;font-family:var(--math);white-space:nowrap}
+.rad-i{font-size:.66em;line-height:1;margin-right:-.12em;transform:translateY(-.58em);font-style:italic}
+.rad-s{font-size:1.12em;line-height:1;margin-right:-.03em}
+.rad-b{border-top:1.25px solid currentColor;padding:0 2.5px 0 1.5px;line-height:1.15;display:inline-block}
+.math .rad-b{border-top-width:1.35px}
+.nuc{display:inline-flex;flex-direction:column;align-items:flex-end;vertical-align:middle;line-height:.88;font-size:.66em;margin-right:1px;font-family:var(--math)}
+.nuc sup,.nuc sub{position:static;font-size:1em;line-height:1}
 .eq-tag{font-size:11px;font-weight:700;color:var(--muted)}
 .we{border:1.5px dashed var(--line2);border-radius:16px;padding:14px;background:var(--stage);display:flex;flex-direction:column;gap:8px}
 .we-hd{font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--orange)}
@@ -320,6 +333,174 @@ table.cmp-tbl{width:100%;border-collapse:collapse;font-size:12.5px}
 <script>
 /* ===== HELPERS & MATH ===== */
 const fr=(n,d)=>`<span class="fr"><span class="fr-n">${n}</span><span class="fr-d">${d}</span></span>`;
+const rad=(expr,idx='')=>`<span class="rad">${idx?`<span class="rad-i">${idx}</span>`:''}<span class="rad-s">√</span><span class="rad-b">${expr}</span></span>`;
+const _SUP_MAP={'⁰':'0','¹':'1','²':'2','³':'3','⁴':'4','⁵':'5','⁶':'6','⁷':'7','⁸':'8','⁹':'9','⁻':'−','⁺':'+','⁽':'(','⁾':')','ⁿ':'<i>n</i>','ᵐ':'<i>m</i>'};
+const _SUB_MAP={'₀':'0','₁':'1','₂':'2','₃':'3','₄':'4','₅':'5','₆':'6','₇':'7','₈':'8','₉':'9','ₙ':'<i>n</i>'};
+const _supToHtml=s=>s.replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹⁻⁺⁽⁾ⁿᵐ]/g,c=>_SUP_MAP[c]||c);
+const _subToHtml=s=>s.replace(/[₀₁₂₃₄₅₆₇₈₉ₙ]/g,c=>_SUB_MAP[c]||c);
+const _italVars=s=>s.replace(/\b(sin|cos|tan|ln|log|HCF|LCM|UB|LB|max|min)\b|\b([a-zA-Z])\b/g,(m,fn,v)=>{
+  if(fn) return fn;
+  if(['a','b','c','d','f','g','h','i','k','m','n','p','q','r','s','t','u','v','w','x','y','z','A','B','C','E','F','H','I','L','M','N','P','Q','R','T','V','W','X','Y','Z'].includes(v)) return `<i>${v}</i>`;
+  return m;
+});
+function _fmtMathExpr(s){
+  // Format a pure math sub-expression (inside rad, sup, fr)
+  s=s.replace(/([a-zA-Z0-9\)\]λθρπ]+)\^\(([^)]+)\)/g,(_,b,e)=>`${_italVars(b)}<sup>${_italVars(e)}</sup>`);
+  s=s.replace(/([a-zA-Z0-9\)\]])\^([−\-]?[a-zA-Z0-9]+)/g,(_,b,e)=>`${_italVars(b)}<sup>${_italVars(e)}</sup>`);
+  s=s.replace(/([a-zA-Z0-9\)\]])([⁰¹²³⁴⁵⁶⁷⁸⁹⁻⁺⁽⁾ⁿᵐ]+)/g,(_,b,e)=>`${b}<sup>${_supToHtml(e)}</sup>`);
+  s=s.replace(/([a-zA-Z])([₀₁₂₃₄₅₆₇₈₉ₙ]+)/g,(_,b,e)=>`<i>${b}</i><sub>${_subToHtml(e)}</sub>`);
+  s=s.replace(/\b([0-9]+(?:\.[0-9]+)?)\s*([a-zA-Z]{1,3})\b/g,(m,num,vs)=>/^(sin|cos|tan|cm|mm|km|Hz|Pa|kW|kJ|Mpc)$/.test(vs)?m:`${num}<i>${vs}</i>`);s=s.replace(/\b(ma|mg|Fd|mv|IR|VI|VIt|mx|mc)\b/g,'<i>$1</i>');s=s.replace(/\b([fc])(λ)/g,'<i>$1</i>$2');
+  s=s.replace(/(^|[\s(+\-−=×÷±,])([a-zA-Z])(?=[\s)+\-−=×÷±,^<]|$)/g,(m,pre,v)=>{
+    if(['a','b','c','d','f','g','h','i','k','m','n','p','q','r','s','t','u','v','w','x','y','z','A','B','C','E','F','H','I','L','M','N','P','Q','R','T','V','W','X','Y'].includes(v)) return `${pre}<i>${v}</i>`;
+    return m;
+  });
+  return s;
+}
+function _replaceRoots(txt){
+  // Balanced-paren scanner for (³|⁴|ⁿ)?√(...)
+  let out='',i=0;
+  while(i<txt.length){
+    let idx='',rPos=-1;
+    if((txt[i]==='³'||txt[i]==='⁴'||txt[i]==='ⁿ') && txt[i+1]==='√'){
+      idx=txt[i]==='³'?'3':txt[i]==='⁴'?'4':'n';
+      rPos=i+1;
+    }else if(txt[i]==='√'){
+      rPos=i;
+    }
+    if(rPos!==-1 && txt[rPos+1]==='('){
+      let depth=1,j=rPos+2;
+      while(j<txt.length && depth>0){
+        if(txt[j]==='(') depth++;
+        else if(txt[j]===')') depth--;
+        j++;
+      }
+      if(depth===0){
+        const inner=txt.slice(rPos+2,j-1);
+        const formatted=_fmtMathExpr(_replaceRoots(inner));
+        out+=rad(formatted,idx);
+        i=j;
+        continue;
+      }
+    }else if(rPos!==-1){
+      // Simple root like ³√27, ⁴√16, ⁿ√a, √76, √100
+      const m=txt.slice(rPos+1).match(/^([0-9]+(?:\.[0-9]+)?|[a-zA-Z])/);
+      if(m){
+        const inner=m[1];
+        out+=rad(/[a-zA-Z]/.test(inner)?`<i>${inner}</i>`:inner,idx);
+        i=rPos+1+m[0].length;
+        continue;
+      }
+    }
+    out+=txt[i];
+    i++;
+  }
+  return out;
+}
+function _fmtTextNode(t){
+  if(!t || !t.trim()) return t;
+  // 1. Nuclear nuclide notation: ᴬ_Z X, ²¹⁰₈₄Po, ⁴₂He, ⁰₋₁e, ¹⁴₆C, ²⁴¹₉₅Am
+  t=t.replace(/ᴬ_Z\s*X/g,'<span class="m"><span class="nuc"><sup><i>A</i></sup><sub><i>Z</i></sub></span>X</span>');
+  t=t.replace(/([⁰¹²³⁴⁵⁶⁷⁸⁹]+)([₀₁₂₃₄₅₆₇₈₉₋]+)(Po|He|Am|Ne|Np|Rn|Ra|Th|U|C|N|O|H|e|α|β|γ)\b/g,(_,a,z,sym)=>{
+    const zClean=z.replace(/₋/g,'−');
+    return `<span class="m"><span class="nuc"><sup>${_supToHtml(a)}</sup><sub>${_subToHtml(zClean)}</sub></span>${sym}</span>`;
+  });
+  // 1b. Named physics subscripts & symbols
+  t=t.replace(/\bV_peak\b/g,'<span class="m"><i>V</i><sub>peak</sub></span>');
+  t=t.replace(/\bEk\b/g,'<span class="m"><i>E</i><sub>k</sub></span>');
+  t=t.replace(/ΔEp\b/g,'<span class="m">Δ<i>E</i><sub>p</sub></span>');
+  t=t.replace(/\bt½(?=\b|[\s.,;:=)]|$)/g,'<span class="m"><i>t</i><sub>½</sub></span>');
+  // 1c. Transformer equations: Vp / Vs = Np / Ns and VpIp = VsIs
+  t=t.replace(/\bVp\s*\/\s*Vs\s*=\s*Np\s*\/\s*Ns\b/g,
+    `<span class="m">${fr('<i>V</i><sub>p</sub>','<i>V</i><sub>s</sub>')} = ${fr('<i>N</i><sub>p</sub>','<i>N</i><sub>s</sub>')}</span>`);
+  t=t.replace(/\bVpIp\s*=\s*VsIs\b/g,
+    '<span class="m"><i>V</i><sub>p</sub><i>I</i><sub>p</sub> = <i>V</i><sub>s</sub><i>I</i><sub>s</sub></span>');
+  t=t.replace(/\b(V|I|N)(p|s)\b/g,(m,v,s)=>`<span class="m"><i>${v}</i><sub>${s}</sub></span>`);
+  // 2. Replace roots (with balanced parentheses)
+  t=_replaceRoots(t);
+  // 3. Caret exponents: 27^(−2/3), 16^(3/4), a^(m/n), a^(1/2), 27^(2/3)
+  t=t.replace(/(\b[a-zA-Z0-9]+)\^\(([^)]+)\)/g,(_,base,exp)=>{
+    const b=/^[a-zA-Z]$/.test(base)?`<i>${base}</i>`:base;
+    const e=exp.replace(/([a-zA-Z])/g,'<i>$1</i>');
+    return `<span class="m">${b}<sup>${e}</sup></span>`;
+  });
+  // 4. Stacked fractions for explicit algebraic/physics formula ratios (never units or score ratios)
+  // 4a. (expr) / (expr)
+  t=t.replace(/\(([^()]{2,42})\)\s*\/\s*\(([^()]{1,28})\)/g,(m,n,d)=>{
+    if(/[a-z]{4,}/i.test(n) && !/(sin|cos|tan|rad)/i.test(n)) return m;
+    return `<span class="m">${fr(_fmtMathExpr(n),_fmtMathExpr(d))}</span>`;
+  });
+  // 4b. (expr) / simpleDenom  e.g. (x − 3)/2, (v − u)/t, (2+6)/2, (−b ± <rad>)/2a
+  t=t.replace(/\(([^()]{2,55}|[^()]*<span class="rad">.*?<\/span>[^()]*)\)\s*\/\s*(2a|2|6|4|t|Δt|n|20|360|100)\b/g,(_,n,d)=>{
+    return `<span class="m">${fr(_fmtMathExpr(n),_fmtMathExpr(d))}</span>`;
+  });
+  // 4b2. ΔE / (mΔθ), ΔE / (mc), 0.693 / λ, V² / R
+  t=t.replace(/(ΔE)\s*\/\s*\((mΔθ|mc)\)/g,(_,n,d)=>`<span class="m">${fr('Δ<i>E</i>',d==='mΔθ'?'<i>m</i>Δ<i>θ</i>':'<i>mc</i>')}</span>`);
+  t=t.replace(/\b(0\.693)\s*\/\s*(λ|\|gradient\|)/g,(_,n,d)=>`<span class="m">${fr(n,d)}</span>`);
+  t=t.replace(/\bV²\s*\/\s*R\b/g,`<span class="m">${fr('<i>V</i><sup>2</sup>','<i>R</i>')}</span>`);
+  // 4c. 1 / <span class="m">...</span> or 1 / sin c or 1 / H₀ or 1 / T or 1 / R
+  t=t.replace(/\b1\s*\/\s*(<span class="m">.*?<\/span>|(?:sin\s*c|H₀|T|R₁|R₂|R|n|f)(?=\b|[\s.,;)]|$))/g,(_,d)=>{
+    const den=d.startsWith('<span')?d:_fmtMathExpr(d);
+    return `<span class="m">${fr('1',den)}</span>`;
+  });
+  // 4d. Named physics/maths formula ratios
+  t=t.replace(/\b(sin\s*i)\s*\/\s*(sin\s*r)\b/g,`<span class="m">${fr('sin <i>i</i>','sin <i>r</i>')}</span>`);
+  t=t.replace(/(Δ[ypxE])\s*\/\s*(Δ[xt]|t)\b/g,(_,n,d)=>`<span class="m">${fr(_fmtMathExpr(n),_fmtMathExpr(d))}</span>`);
+  t=t.replace(/\b(2πr|2d)\s*\/\s*([Tt])\b/g,(_,n,d)=>`<span class="m">${fr(_fmtMathExpr(n),_fmtMathExpr(d))}</span>`);
+  t=t.replace(/\b([mFWQVEsavPc])\s*\/\s*([VAxmQtIdbRλ])\b/g,(m,n,d)=>{
+    const ok=['m/V','F/A','F/x','W/m','W/Q','W/t','Q/t','V/I','E/t','s/t','v/d','a/b','P/R','P/V','c/λ'];
+    if(!ok.includes(n+'/'+d)) return m;
+    return `<span class="m">${fr(_fmtMathExpr(n),_fmtMathExpr(d))}</span>`;
+  });
+  // 4e. Exact standalone pure numeric fractions like 1/9, 10/3, 80/360, θ/360
+  t=t.replace(/(^|[\s(=+\-−])(1\/9|10\/3|80\/360|θ\/360)(?=[\s).,;]|$)/g,(_,pre,f)=>{
+    const [n,d]=f.split('/');
+    return `${pre}<span class="m">${fr(n,d)}</span>`;
+  });
+  // 5. Inverse trig & inverse functions: sin⁻¹, cos⁻¹, tan⁻¹, f⁻¹
+  t=t.replace(/\b(sin|cos|tan)⁻¹/g,'<span class="m">$1<sup>−1</sup></span>');
+  t=t.replace(/\b([fg])⁻¹/g,'<span class="m"><i>$1</i><sup>−1</sup></span>');
+  // 6. Scientific notation & powers with Unicode superscripts: 10⁸, 10⁻⁴, x², aᵐ⁺ⁿ, cm³, m/s²
+  t=t.replace(/(\b10)([⁰¹²³⁴⁵⁶⁷⁸⁹⁻⁺]+)/g,(_,b,e)=>`<span class="m">${b}<sup>${_supToHtml(e)}</sup></span>`);
+  t=t.replace(/\b(cm|mm|km|m|s)([⁰¹²³⁴⁵⁶⁷⁸⁹⁻]+)/g,(_,u,e)=>`${u}<sup>${_supToHtml(e)}</sup>`);
+  t=t.replace(/\bI²R\b/g,'<span class="m"><i>I</i><sup>2</sup><i>R</i></span>');
+  t=t.replace(/½mv²/g,'<span class="m">½<i>mv</i><sup>2</sup></span>');
+  t=t.replace(/\bmgΔh\b/g,'<span class="m"><i>mg</i>Δ<i>h</i></span>');
+  t=t.replace(/([a-zA-Z0-9\)])([⁰¹²³⁴⁵⁶⁷⁸⁹⁻⁺ⁿᵐ]+)/g,(m,b,e)=>{
+    const base=/^[a-zA-Z]$/.test(b)?`<i>${b}</i>`:b;
+    return `<span class="m">${base}<sup>${_supToHtml(e)}</sup></span>`;
+  });
+  // 7. Subscripts: p₁, V₁, R₁, H₀, x₁, y₂, m₁, uₙ
+  t=t.replace(/\b([pVRHxymrtuI])([₀₁₂₃₄₅₆₇₈₉ₙ]+)/g,(_,b,e)=>`<span class="m"><i>${b}</i><sub>${_subToHtml(e)}</sub></span>`);
+  // 8. Function notation f(x), g(x), fg(x), fg(4), f(16)
+  t=t.replace(/\b(fg|gf|f|g)\(([a-z0-9]+)\)/g,(_,fn,arg)=>`<span class="m"><i>${fn}</i>(${/^[a-z]$/.test(arg)?`<i>${arg}</i>`:arg})</span>`);
+  // 9. Common inline physics & maths equations
+  t=t.replace(/(?:\b|(?=[Δ]))(v = fλ|c = fλ|F = ma|F = kx|W = mg|W = Fd|M = F × d|p = mv|V = IR|P = VI|E = VIt|E = Pt|Q = It|T = θ \+ 273|y = mx \+ c|Δp = ρgΔh|ΔE = mcΔθ|i = r)(?=[\s.,;)]|$)/g,
+    m=>`<span class="m">${_fmtMathExpr(m)}</span>`);
+  // 10. Italicise LHS single variable before " = <span class="m">" (e.g. "n = <fr>", "v = <fr>", "c = <fr>")
+  t=t.replace(/(^|[\s(,:;])(sin\s+c|Δθ|Δp|ΔE|[a-zA-Zρλθ])(\s*=\s*<span class="m">)/g,(m,pre,lhs,eq)=>{
+    if(lhs==='sin c') return `${pre}<span class="m">sin <i>c</i></span>${eq}`;
+    if(lhs.startsWith('Δ')) return `${pre}<span class="m">Δ<i>${lhs.slice(1)}</i></span>${eq}`;
+    if(/[a-zA-Z]/.test(lhs)) return `${pre}<span class="m"><i>${lhs}</i></span>${eq}`;
+    return `${pre}<span class="m">${lhs}</span>${eq}`;
+  });
+  return t;
+}
+function fmtMath(html){
+  if(html==null) return '';
+  const str=String(html);
+  // Split into HTML tags vs text nodes, skipping already-formatted .math / .m / .rad / .fr spans
+  const parts=str.split(/(<[^>]+>)/g);
+  let skipDepth=0;
+  return parts.map(p=>{
+    if(!p) return '';
+    if(p.startsWith('<')){
+      if(/^<span[^>]*class="[^"]*\b(m|math|rad|fr)\b/.test(p)) skipDepth++;
+      else if(p==='</span>' && skipDepth>0) skipDepth--;
+      return p;
+    }
+    return skipDepth>0?p:_fmtTextNode(p);
+  }).join('');
+}
 const sci=(v,dp=2)=>{
   if(!v) return '0';
   const e=Math.floor(Math.log10(Math.abs(v)));
@@ -1432,7 +1613,7 @@ const EXTRA_NOTES={
     ],
     ur:'<strong>Scalar mein sirf size hota hai, jabke Vector mein size aur direction dono hote hain.</strong> Pendulum ka time period nikalne ke liye hamesha 20 oscillations ka time lo aur 20 se divide karo taake reaction-time error kam ho.',
     urdu:'اسکیلر مقدار صرف عددی قیمت رکھتی ہے جبکہ ویکٹر مقدار قیمت اور سمت دونوں رکھتی ہے۔',
-    eqs:[[`<i>T</i> = ${fr('<i>t</i><sub>20</sub>','20')}`,'Pendulum period · reduce error'],[`<i>R</i> = √(<i>A</i><sup>2</sup> + <i>B</i><sup>2</sup>)`,'Perpendicular vectors']],
+    eqs:[[`<i>T</i> = ${fr('<i>t</i><sub>20</sub>','20')}`,'Pendulum period · reduce error'],[`<i>R</i> = ${rad('<i>A</i><sup>2</sup> + <i>B</i><sup>2</sup>')}`,'Perpendicular vectors']],
     we:{q:'A 3.0 N force acts north and a 4.0 N force acts east on a small ring. Calculate the magnitude of the resultant force.',s:['Forces are at 90°, so use Pythagoras: R = √(3.0² + 4.0²).','R = √(9 + 16) = √25.'],a:'R = 5.0 N'},
     tip:['Examiner tip','Always read a measuring cylinder with your eye level with the BOTTOM of the meniscus to avoid parallax error.']
   },
@@ -3108,7 +3289,7 @@ const MATH_RAW = {
     pts:['<strong>Simultaneous equations:</strong> use elimination (match coefficients of x or y, Same Signs Subtract) or substitution (best when one equation is already y = …).','<strong>Quadratic formula:</strong> when Paper 2 asks for answers "correct to 2 decimal places", it is a guaranteed signal to use the quadratic formula or completing the square.','<strong>Completing the square:</strong> x² + bx + c = (x + b/2)² − (b/2)² + c immediately gives the turning point (−b/2, c − b²/4).'],
     ur:'<strong>Agar Paper 2 mein "correct to 2 decimal places" likha ho to seedha Quadratic Formula lagao!</strong> Pehle equation ko ax² + bx + c = 0 ki shakal mein lao aur b, c ke minus signs dhyan se likho.',
     urdu:'دو درجی مساوات کو حل کرنے سے پہلے اسے معیاری صورت ax² + bx + c = 0 میں لکھیں۔',
-    eqs:[[`<i>x</i> = ${fr('−<i>b</i> ± √(<i>b</i><sup>2</sup> − 4<i>a</i><i>c</i>)','2<i>a</i>')}`,'Quadratic formula']],
+    eqs:[[`<i>x</i> = ${fr('−<i>b</i> ± ' + rad('<i>b</i><sup>2</sup> − 4<i>a</i><i>c</i>'),'2<i>a</i>')}`,'Quadratic formula']],
     we:{q:'Solve 2x² − 5x − 3 = 0.',s:['Factorise: (2x + 1)(x − 3) = 0.','Set each bracket to zero: 2x + 1 = 0 or x − 3 = 0.'],a:'x = −0.5 or x = 3'},
     tip:['Examiner tip','Always show the full substitution into the quadratic formula — even if you slip on the calculator, showing (−b ± √(b² − 4ac))/(2a) earns M1 method marks.'],
     fcs:[{tag:'Formula · 2.5',front:'Quadratic formula',back:'x = (−b ± √(b² − 4ac)) / (2a) for ax² + bx + c = 0.'},{tag:'Method · 2.5',front:'Vertex from (x + p)² + q',back:'Minimum turning point is at (−p, q).'}],
@@ -3254,7 +3435,7 @@ const MATH_RAW = {
     pts:['<strong>Magnitude:</strong> |(x, y)| = √(x² + y²). Reversing a vector negates it: BA = −AB.','<strong>Vector pathway:</strong> to go from A to C, travel via any known route: AC = AB + BC.','<strong>Parallel & collinear proof:</strong> if PQ = k × RS, the vectors are parallel; if they also share a common point, the three points are collinear (lie on one straight line).'],
     ur:'<strong>Vector rasta dhoondne ka asaan tareeqa:</strong> agar A se C jana hai to kisi bhi maloom raste se jao (AC = AO + OC). Agar ek vector doosre ka multiple ho (jaise PQ = 2 × PR) to wo parallel aur collinear hote hain.',
     urdu:'ویکٹر کی لمبائی فیثاغورث کے قانون √(x² + y²) سے معلوم کی جاتی ہے۔',
-    eqs:[[`|<b>v</b>| = √(<i>x</i><sup>2</sup> + <i>y</i><sup>2</sup>)`,'Vector magnitude'],[`<b>AB</b> = <b>OB</b> − <b>OA</b>`,'Position vectors']],
+    eqs:[[`|<b>v</b>| = ${rad('<i>x</i><sup>2</sup> + <i>y</i><sup>2</sup>')}`,'Vector magnitude'],[`<b>AB</b> = <b>OB</b> − <b>OA</b>`,'Position vectors']],
     we:{q:'Given a = (3, −4), calculate |a| and 2a.',s:['|a| = √(3² + (−4)²) = √(9 + 16) = 5.','2a = (6, −8).'],a:'|a| = 5, 2a = (6, −8)'},
     tip:['Examiner tip','Always state BOTH facts when proving three points A, B, C are collinear: (1) AB = k·BC so they are parallel, AND (2) they share the common point B.'],
     fcs:[{tag:'Formula · 7.2',front:'Magnitude of column vector (x, y)',back:'√(x² + y²).'},{tag:'Rule · 7.2',front:'Proving two vectors are parallel',back:'Show one is a scalar multiple of the other (u = k·v).'}],
@@ -3971,7 +4152,7 @@ function renderObjectives(){
         return `<div class="obj-item">
           <div class="obj-code num">${code}</div>
           <div class="obj-body">
-            <div class="obj-txt">${esc(txtStr)}</div>
+            <div class="obj-txt">${fmtMath(esc(txtStr))}</div>
             <div class="obj-links">${links.map(lk=>`<button type="button" class="lchip" data-lt="${lk[0]}" data-lr="${lk[1]}">${linkLabel(lk)}</button>`).join('')}</div>
           </div>
           <button type="button" class="confbtn ${c===1?'c1':c===2?'c2':''}" data-conf="${code}" aria-label="Toggle confidence for ${code}">
@@ -3989,7 +4170,7 @@ function renderLearn(){
   const fc=fcs[(st.fcAt||0)%fcs.length];
   let top=`<div class="prereq">
     <div class="eyebrow">Before you start · Prerequisites</div>
-    <ul>${T.prereq.map(p=>`<li>${p}</li>`).join('')}</ul>
+    <ul>${T.prereq.map(p=>`<li>${fmtMath(p)}</li>`).join('')}</ul>
   </div>
   <section class="card">
     <div class="eyebrow">Concept map</div>
@@ -4009,7 +4190,7 @@ function renderLearn(){
     </div>
     <div class="fc-card ${st.fcFlip?'flipped':''}" id="fc-card" role="button" tabindex="0">
       <span class="pill ${st.fcFlip?'p-mint':'p-ghost'}">${fc.tag}</span>
-      ${st.fcFlip?`<div class="fc-a">${fc.back}</div>`:`<div class="fc-q">${fc.front}</div><div class="sub">Tap card to reveal definition / formula</div>`}
+      ${st.fcFlip?`<div class="fc-a">${fmtMath(fc.back)}</div>`:`<div class="fc-q">${fmtMath(fc.front)}</div><div class="sub">Tap card to reveal definition / formula</div>`}
     </div>
     <div class="between" style="margin-top:10px">
       <button type="button" class="btn btn-g btn-s" id="fc-prev">← Prev</button>
@@ -4027,17 +4208,17 @@ function renderLearn(){
       <span class="sub">${n.objs}</span>
     </div>
     <h3>${n.title}</h3>
-    <ul class="pts">${n.pts.map(p=>`<li>${p}</li>`).join('')}</ul>
+    <ul class="pts">${n.pts.map(p=>`<li>${fmtMath(p)}</li>`).join('')}</ul>
     ${S.urdu?`<div class="urdu-box">
       <div class="urdu-hd">Roman Urdu help</div>
-      <div class="urdu-rom">${n.ur}</div>
+      <div class="urdu-rom">${fmtMath(n.ur)}</div>
       <div class="urdu-rtl" lang="ur">${n.urdu}</div>
     </div>`:''}
     ${n.cmp?`<div class="cmp-wrap">
       <div class="cmp-hd">${n.cmp.title}</div>
       <table class="cmp-tbl">
         <thead><tr>${n.cmp.cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
-        <tbody>${n.cmp.rows.map(r=>`<tr>${r.map((c,i)=>i===0?`<td><b>${c}</b></td>`:`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody>
+        <tbody>${n.cmp.rows.map(r=>`<tr>${r.map((c,i)=>i===0?`<td><b>${fmtMath(c)}</b></td>`:`<td>${fmtMath(c)}</td>`).join('')}</tr>`).join('')}</tbody>
       </table>
     </div>`:''}
     <div class="eq-list">
@@ -4049,9 +4230,9 @@ function renderLearn(){
         <div class="we-hd">Worked example (step-by-step)</div>
         <span class="sub num">${shown}/${totalSteps} shown</span>
       </div>
-      <div class="we-q">${n.we.q}</div>
-      ${shown>0?`<ol class="we-steps">${n.we.s.slice(0,shown).map(st=>`<li>${st}</li>`).join('')}</ol>`:''}
-      ${shown>=totalSteps?`<div class="we-ans num">${n.we.a}</div>`:''}
+      <div class="we-q">${fmtMath(n.we.q)}</div>
+      ${shown>0?`<ol class="we-steps">${n.we.s.slice(0,shown).map(st=>`<li>${fmtMath(st)}</li>`).join('')}</ol>`:''}
+      ${shown>=totalSteps?`<div class="we-ans num">${fmtMath(n.we.a)}</div>`:''}
       <div class="we-ctrl">
         ${shown<totalSteps?`<button type="button" class="btn btn-o btn-s" data-westep="${n.id}:next">${shown===0?'Reveal step 1':shown===n.we.s.length?'Reveal final answer':'Reveal next step'}</button>`:''}
         ${shown<totalSteps?`<button type="button" class="btn btn-g btn-s" data-westep="${n.id}:all">Show all</button>`:`<button type="button" class="btn btn-g btn-s" data-westep="${n.id}:reset">Hide steps</button>`}
@@ -4059,7 +4240,7 @@ function renderLearn(){
     </div>
     <div class="tip ${n.tip[2]||''}">
       <div class="tip-hd">${n.tip[0]}</div>
-      <div class="tip-txt">${n.tip[1]}</div>
+      <div class="tip-txt">${fmtMath(n.tip[1])}</div>
     </div>
   </article>`;
   }).join('');
@@ -4079,9 +4260,9 @@ function renderCommands(){
         <span class="pill p-ink" style="font-size:13px;padding:5px 12px">${w}</span>
         <button type="button" class="lchip" data-lt="${lt}" data-lr="${lr}">${lbl} →</button>
       </div>
-      <div class="ttl" style="font-weight:600">${mean}</div>
-      <div class="sub"><b style="color:var(--ink)">In this topic:</b> ${ex}</div>
-      <div class="tip"><div class="tip-hd">How to score</div><div class="tip-txt">${tip}</div></div>
+      <div class="ttl" style="font-weight:600">${fmtMath(mean)}</div>
+      <div class="sub"><b style="color:var(--ink)">In this topic:</b> ${fmtMath(ex)}</div>
+      <div class="tip"><div class="tip-hd">How to score</div><div class="tip-txt">${fmtMath(tip)}</div></div>
     </div>`;
   });
   return h;
@@ -4107,7 +4288,7 @@ function renderPractice(){
       <span class="pill p-ghost num">Question ${at+1} of ${mcqs.length}</span>
       <span class="pill p-lav num">Obj ${q.obj}</span>
     </div>
-    <div class="ttl" style="margin-bottom:12px">${q.q}</div>
+    <div class="ttl" style="margin-bottom:12px">${fmtMath(q.q)}</div>
     <div style="display:flex;flex-direction:column;gap:8px">
       ${q.o.map((opt,i)=>{
         let cls='';
@@ -4116,7 +4297,7 @@ function renderPractice(){
           else if(i===picked) cls='bad';
         }
         return `<button type="button" class="opt ${cls}" data-mopt="${i}" ${picked!==undefined?'disabled':''}>
-          <span class="opt-k">${'ABCD'[i]}</span><span>${opt}</span>
+          <span class="opt-k">${'ABCD'[i]}</span><span>${fmtMath(opt)}</span>
         </button>`;
       }).join('')}
     </div>
@@ -4135,12 +4316,12 @@ function renderPractice(){
       <div class="ttl" style="font-size:13.5px;margin-top:6px">${a.q}</div>
       <div class="ann-box ann-bad">
         <div><span class="pill p-pink">Lost 1 mark</span></div>
-        <div>${a.bad}</div>
+        <div>${fmtMath(a.bad)}</div>
         <div class="sub" style="color:var(--ink)"><b>Why:</b> ${a.badWhy}</div>
       </div>
       <div class="ann-box ann-ok">
         <div><span class="pill p-mint">Full marks</span></div>
-        <div>${a.ok}</div>
+        <div>${fmtMath(a.ok)}</div>
         <div class="sub" style="color:var(--ink)"><b>Why:</b> ${a.okWhy}</div>
       </div>
     </div>`).join('')}
@@ -4171,14 +4352,14 @@ function renderPractice(){
             <div class="row" style="gap:6px"><span class="pill p-ink">${p.cw}</span><span class="ttl">(${p.k})</span></div>
             <span class="pill p-peach num">[${p.m}]</span>
           </div>
-          <div style="font-size:14px">${p.q}</div>
+          <div style="font-size:14px">${fmtMath(p.q)}</div>
           <textarea class="sq-ta" data-sqta="${key}" placeholder="Type your working or answer here...">${esc(st.txt||'')}</textarea>
           <div><button type="button" class="btn btn-g btn-s" data-sqrev="${key}">${st.rev?'Hide mark scheme':'Show mark scheme'}</button></div>
           ${st.rev?`
             ${p.sketch?simCard('sketch'):''}
             <div class="ms-list">
               ${p.ms.map(([code,desc],mi)=>`<button type="button" class="ms-row ${st.ticks&&st.ticks[mi]?'on':''}" data-mstick="${key}:${mi}">
-                <span class="ms-code">${code}</span><span style="flex:1">${desc}</span>
+                <span class="ms-code">${code}</span><span style="flex:1">${fmtMath(desc)}</span>
               </button>`).join('')}
             </div>`:''}
         </div>`;
@@ -4335,7 +4516,7 @@ function renderGenLab(){
       </div>
       <div class="tip" style="margin-top:12px">
         <div class="tip-hd">Evaluate</div>
-        <div class="tip-txt">${cfg.evalTxt}</div>
+        <div class="tip-txt">${fmtMath(cfg.evalTxt)}</div>
       </div>
       <button type="button" class="btn ${lb.done?'btn-g':'btn-o'}" id="lab-done" style="width:100%;margin-top:12px">
         ${lb.done?'✓ Practical marked complete':'Mark practical complete'}
@@ -4413,7 +4594,7 @@ function renderProgress(){
     ${focus.length?`<div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
       ${focus.map(o=>`<button type="button" class="opt" data-focus="${o[0]}">
         <span class="pill p-lav num">${o[0]}</span>
-        <span style="flex:1;font-size:13px">${esc(o[1])}</span>
+        <span style="flex:1;font-size:13px">${fmtMath(esc(o[1]))}</span>
       </button>`).join('')}
     </div>`:`<p class="sub" style="margin:8px 0 0">Every syllabus objective in Topic ${dispCode} is marked confident!</p>`}
   </div>`;
