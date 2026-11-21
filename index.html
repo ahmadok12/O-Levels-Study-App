@@ -3623,28 +3623,47 @@ function ring(pct,live){
 }
 
 /* ===== RENDERERS ===== */
+function subjAvg(subjCode){
+  const list=subjCode==='4024'?MATH_CODES:ALL_CODES;
+  const vals=list.map(c=>topicMastery(c));
+  return Math.round(vals.reduce((a,b)=>a+b,0)/vals.length);
+}
+
 function renderTopbar(){
   const tb=document.getElementById('topbar');
-  if(S.scr==='home'||S.scr==='subjects'){
-    tb.innerHTML=`
-      <div style="display:flex;align-items:center">
-        <span class="wm"><span>study</span><span class="wm-b">mate</span><span class="wm-dot"></span></span>
-        <span class="lvl">O Level</span>
-      </div>
-      <button type="button" class="iconbtn" id="btn-theme" title="Toggle light or dark theme" aria-label="Toggle theme">${ICO.sun}</button>`;
-    document.getElementById('btn-theme').addEventListener('click',()=>{
+  const bindTheme=()=>{
+    const bt=document.getElementById('btn-theme');
+    if(!bt) return;
+    bt.addEventListener('click',()=>{
       const isDark=document.documentElement.getAttribute('data-theme')==='dark' ||
         (!document.documentElement.getAttribute('data-theme') && window.matchMedia('(prefers-color-scheme:dark)').matches);
       S.theme=isDark?'light':'dark';
       applyTheme();save();render();
       toast(S.theme==='dark'?'Dark mode on':'Light mode on');
     });
+  };
+  if(S.scr==='home'){
+    tb.innerHTML=`
+      <div style="display:flex;align-items:center">
+        <span class="wm"><span>study</span><span class="wm-b">mate</span><span class="wm-dot"></span></span>
+        <span class="lvl">O Level</span>
+      </div>
+      <button type="button" class="iconbtn" id="btn-theme" title="Toggle light or dark theme" aria-label="Toggle theme">${ICO.sun}</button>`;
+    bindTheme();
+  }else if(S.scr==='subject'){
+    const meta=SUBJECT_CATALOG.find(x=>x.code===S.subj)||SUBJECT_CATALOG[0];
+    tb.innerHTML=`
+      <button type="button" class="iconbtn" id="btn-back" aria-label="Back to all subjects">${ICO.back}</button>
+      <div class="topbar-title">${meta.name} (${meta.code})</div>
+      <button type="button" class="iconbtn" id="btn-theme" title="Toggle light or dark theme" aria-label="Toggle theme">${ICO.sun}</button>`;
+    document.getElementById('btn-back').addEventListener('click',()=>go('home'));
+    bindTheme();
   }else{
     tb.innerHTML=`
-      <button type="button" class="iconbtn" id="btn-back" aria-label="Back to Home">${ICO.back}</button>
-      <div class="topbar-title">${curP().short}</div>
+      <button type="button" class="iconbtn" id="btn-back" aria-label="Back to subject topics">${ICO.back}</button>
+      <div class="topbar-title">${curP().short.replace(/^M/,'')}</div>
       <button type="button" class="urdubtn ${S.urdu?'on':''}" id="btn-urdu">Urdu help</button>`;
-    document.getElementById('btn-back').addEventListener('click',()=>go('home'));
+    document.getElementById('btn-back').addEventListener('click',()=>go('subject'));
     document.getElementById('btn-urdu').addEventListener('click',()=>{
       S.urdu=!S.urdu;save();render();
       toast(S.urdu?'Roman Urdu helper turned on':'Roman Urdu helper hidden');
@@ -3655,59 +3674,95 @@ function renderTopbar(){
 function renderTabbar(){
   const tb=document.getElementById('tabbar');
   const tabs=[['home','Home','home'],['subjects','Subjects','book'],['hub','Study Hub','spark'],['profile','Profile','user']];
-  const activeTab=S.scr==='subjects'?'subjects':'home';
+  const activeTab=S.scr==='home'?'home':'subjects';
   tb.innerHTML=tabs.map(([id,lbl,ic])=>`<button type="button" class="tab ${id===activeTab?'on':''}" data-tab="${id}">${ICO[ic]}<span>${lbl}</span></button>`).join('');
   tb.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{
     const t=b.dataset.tab;
     if(t==='home') go('home');
-    else if(t==='subjects') go('subjects');
+    else if(t==='subjects') go('subject');
     else toast(`${b.textContent} is part of the full Studymate app`);
   }));
 }
 
-function renderSubjects(){
-  let h=`<div>
-    <h1>O Level<br>Subjects</h1>
-    <div class="sub" style="margin-top:6px">Switch between live subjects or inspect official syllabus outlines ready for new topics.</div>
-  </div>
-  <div style="display:flex;flex-direction:column;gap:12px">`;
-  SUBJECT_CATALOG.forEach(sub=>{
-    const isLive=sub.status==='live';
-    const isCur=S.subj===sub.code;
-    h+=`<button type="button" class="card tight cont" data-picksubj="${sub.code}" style="border-color:${isCur?'var(--purple)':'var(--line)'}">
-      <div class="ichip" style="background:${isLive?'var(--lav)':'var(--bg)'};color:${isLive?'var(--purple)':'var(--muted)'}">${ICO[sub.icon]||ICO.book}</div>
-      <div style="flex:1;min-width:0">
-        <div class="between" style="gap:6px">
-          <div class="ttl">${sub.name} <span class="sub num">(${sub.code})</span></div>
-          <span class="pill ${isLive?'p-mint':'p-ghost'}">${isLive?'Live':'Outline'}</span>
+function renderAllSubjectsHome(){
+  const liveSubs=SUBJECT_CATALOG.filter(x=>x.status==='live');
+  const outSubs=SUBJECT_CATALOG.filter(x=>x.status!=='live');
+  const curMeta=SUBJECT_CATALOG.find(x=>x.code===S.subj)||SUBJECT_CATALOG[0];
+  const os=objStats();
+  let html=`
+    <div>
+      <h1>Cambridge<br>O Level</h1>
+      <div class="sub" style="margin-top:6px">Choose a subject to open its syllabus topics and practice tools.</div>
+    </div>
+    <div class="seg" role="tablist">
+      <button type="button" class="on" id="seg-ol">O Level</button>
+      <button type="button" id="seg-al">A Level</button>
+    </div>
+    <div class="card">
+      <button type="button" class="cont" id="btn-cont-home">
+        <div class="ichip" style="background:var(--lav);color:var(--purple)">${ICO[curP().icon]||ICO.wave}</div>
+        <div style="flex:1;min-width:0">
+          <div class="eyebrow">Continue studying · ${curMeta.name} (${curMeta.code})</div>
+          <div class="ttl">${curP().code.replace(/^M/,'')} · ${curP().name}</div>
+          <div class="sub num">${os.conf} of ${os.total} syllabus objectives confident</div>
         </div>
-        <div class="sub" style="margin-top:2px">${sub.desc}</div>
+        <div style="color:var(--muted)">${ICO.chev}</div>
+      </button>
+    </div>
+    <section class="card">
+      <div class="between">
+        <h2>Live subjects</h2>
+        <span class="pill p-mint">${liveSubs.length} full syllabuses</span>
       </div>
-      <div style="color:var(--muted)">${ICO.chev}</div>
-    </button>`;
-  });
-  h+=`</div>`;
-  return h;
+      <div class="syl-list">
+        ${liveSubs.map(sub=>{
+          const avg=subjAvg(sub.code);
+          return `<button type="button" class="syl-row live" data-opensubj="${sub.code}">
+            <div class="syl-num num">${sub.code}</div>
+            <div style="flex:1;min-width:0">
+              <div class="ttl">${sub.name}</div>
+              <div class="sub">${sub.desc}</div>
+            </div>
+            ${ring(avg,true)}
+          </button>`;
+        }).join('')}
+      </div>
+    </section>
+    <section class="card">
+      <div class="between">
+        <h2>More O Level subjects</h2>
+        <span class="pill p-ghost">${outSubs.length} outlines</span>
+      </div>
+      <div class="syl-list">
+        ${outSubs.map(sub=>`<button type="button" class="syl-row dim" data-opensubj="${sub.code}">
+          <div class="syl-num num">${sub.code}</div>
+          <div style="flex:1;min-width:0">
+            <div class="ttl">${sub.name}</div>
+            <div class="sub">${sub.desc}</div>
+          </div>
+          <span class="pill p-ghost">Outline</span>
+        </button>`).join('')}
+      </div>
+    </section>
+    <div class="sub" style="text-align:center;padding:0 10px">
+      Studymate Cambridge O Level · Tap any subject to explore its chapters and topics.<br>Questions are original, written in the style of Cambridge papers.
+    </div>`;
+  return html;
 }
-function wireSubjects(){
-  document.querySelectorAll('[data-picksubj]').forEach(b=>b.addEventListener('click',()=>{
-    const sc=b.dataset.picksubj;
+
+function wireAllSubjectsHome(){
+  const segAl=document.getElementById('seg-al');
+  if(segAl) segAl.addEventListener('click',()=>toast('A Level is in the companion prototype'));
+  const btnCont=document.getElementById('btn-cont-home');
+  if(btnCont) btnCont.addEventListener('click',()=>go('topic','objectives'));
+  document.querySelectorAll('[data-opensubj]').forEach(b=>b.addEventListener('click',()=>{
+    const sc=b.dataset.opensubj;
     S.subj=sc;
     if(sc==='5054' && !PAGES[S.code]) S.code='3.2';
     if(sc==='4024' && !MATH_PAGES[S.code]) S.code='M1.1';
     save();
-    go('home');
-    const meta=SUBJECT_CATALOG.find(x=>x.code===sc);
-    toast(`Switched to ${meta.name} (${meta.code})`);
+    go('subject');
   }));
-}
-
-function renderSubjStrip(){
-  return `<div class="strip-wrap" style="position:static;margin:0 -18px;border-bottom:none">
-    <div class="strip" id="home-subj-strip" style="padding:2px 18px 6px">
-      ${SUBJECT_CATALOG.map(sub=>`<button type="button" class="${S.subj===sub.code?'on':''}" data-hsubj="${sub.code}">${sub.name} ${sub.code}${sub.status==='live'?' ●':''}</button>`).join('')}
-    </div>
-  </div>`;
 }
 
 function renderOutlineHome(meta){
@@ -3716,7 +3771,6 @@ function renderOutlineHome(meta){
       <h1>${meta.full.replace('Cambridge O Level ','Cambridge<br>O Level ')}</h1>
       <div class="sub" style="margin-top:6px">Syllabus ${meta.code} · ${meta.papers}</div>
     </div>
-    ${renderSubjStrip()}
     <div class="card" style="background:var(--lav);border-color:transparent">
       <div class="eyebrow">Syllabus outline ready</div>
       <div class="ttl" style="margin-top:4px">${meta.name} (${meta.code})</div>
@@ -3729,14 +3783,17 @@ function renderOutlineHome(meta){
         <span class="pill p-ghost">${sec.papers}</span>
       </div>
       <div class="syl-list">
-        ${sec.topics.map(([code,name])=>`<button type="button" class="syl-row dim" data-outline="${esc(name)}">
-          <div class="syl-num num ${code.replace('M','').includes('–')?'rng':''}">${code.replace('M','')}</div>
-          <div style="flex:1;min-width:0">
-            <div class="ttl">${name}</div>
-            <div class="sub">Outline · Topic coming soon</div>
-          </div>
-          <span class="pill p-ghost">Soon</span>
-        </button>`).join('')}
+        ${sec.topics.map(([code,name])=>{
+          const dc=code.replace(/^M/,'');
+          return `<button type="button" class="syl-row dim" data-outline="${esc(name)}">
+            <div class="syl-num num ${dc.includes('–')?'rng':''}">${dc}</div>
+            <div style="flex:1;min-width:0">
+              <div class="ttl">${name}</div>
+              <div class="sub">Outline · Topic coming soon</div>
+            </div>
+            <span class="pill p-ghost">Soon</span>
+          </button>`;
+        }).join('')}
       </div>
     </section>`;
   });
@@ -3752,12 +3809,12 @@ function renderHome(){
   const secs=isM?MATH_SECTIONS:SECTIONS;
   const totalPages=isM?MATH_CODES.length:ALL_CODES.length;
   const os=objStats(),ms=mcqStats(),sqs=sqStats(),mast=topicMastery(),avg=overallAvg(),grd=bandOf(avg);
+  const curDisp=curP().code.replace(/^M/,'');
   let html=`
     <div>
       <h1>Cambridge<br>O Level ${isM?'Mathematics':'Physics'}</h1>
       <div class="sub" style="margin-top:6px">Syllabus ${S.subj} · ${meta.papers}</div>
     </div>
-    ${renderSubjStrip()}
     <div class="seg" role="tablist">
       <button type="button" class="on" id="seg-ol">O Level ${S.subj}</button>
       <button type="button" id="seg-al">A Level ${isM?'9709':'9702'}</button>
@@ -3771,12 +3828,12 @@ function renderHome(){
       <button type="button" class="tile t-pur" data-jump="objectives">
         <div class="tile-lbl">Topic mastery</div>
         <div class="tile-val num">${mast}%</div>
-        <div class="tile-sub">${curP().code.replace('M','')} · ${curP().name}</div>
+        <div class="tile-sub">${curDisp} · ${curP().name}</div>
       </button>
       <button type="button" class="tile t-yel" data-jump="practice">
         <div class="tile-lbl">${isM?'Paper 1 Quick Qs':'Paper 1 MCQs'}</div>
         <div class="tile-val num">${ms.right}/${ms.total}</div>
-        <div class="tile-sub">${ms.ans} answered in ${curP().code}</div>
+        <div class="tile-sub">${ms.ans} answered in ${curDisp}</div>
       </button>
       <button type="button" class="tile t-grn" data-jump="practice-sq">
         <div class="tile-lbl">Paper 2 marks</div>
@@ -3789,7 +3846,7 @@ function renderHome(){
         <div class="ichip" style="background:var(--lav);color:var(--purple)">${ICO[curP().icon]||ICO.wave}</div>
         <div style="flex:1;min-width:0">
           <div class="eyebrow">Continue studying</div>
-          <div class="ttl">${curP().code.replace('M','')} · ${curP().name}</div>
+          <div class="ttl">${curDisp} · ${curP().name}</div>
           <div class="sub num">${os.conf} of ${os.total} syllabus objectives confident</div>
         </div>
         <div style="color:var(--muted)">${ICO.chev}</div>
@@ -3805,8 +3862,9 @@ function renderHome(){
       <div class="syl-list">
         ${sec.topics.map(([code,name])=>{
           const pct=topicMastery(code);
+          const dc=code.replace(/^M/,'');
           return `<button type="button" class="syl-row live" data-syl="${code}">
-            <div class="syl-num num ${code.includes('–')?'rng':''}">${code}</div>
+            <div class="syl-num num ${dc.includes('–')?'rng':''}">${dc}</div>
             <div style="flex:1;min-width:0">
               <div class="ttl">${name}</div>
               <div class="sub">Open topic page</div>
@@ -3825,15 +3883,7 @@ function renderHome(){
 }
 
 function wireHome(){
-  wireHScroll(document.getElementById('home-subj-strip'));
   wireHScroll(document.querySelector('.tiles'));
-  document.querySelectorAll('[data-hsubj]').forEach(b=>b.addEventListener('click',()=>{
-    const sc=b.dataset.hsubj;
-    S.subj=sc;
-    if(sc==='5054' && !PAGES[S.code]) S.code='3.2';
-    if(sc==='4024' && !MATH_PAGES[S.code]) S.code='M1.1';
-    save();render();
-  }));
   document.querySelectorAll('[data-outline]').forEach(b=>b.addEventListener('click',()=>{
     toast('Outline ready — ask to build "'+b.dataset.outline+'" next!');
   }));
@@ -4321,14 +4371,17 @@ function renderLife(){
 function renderProgress(){
   const os=objStats(),ms=mcqStats(),sqs=sqStats(),ls=Math.round(labScore()*100);
   const mast=topicMastery(),avg=overallAvg(),grd=bandOf(avg);
+  const totalPages=activeCodes().length;
+  const meta=SUBJECT_CATALOG.find(x=>x.code===S.subj)||SUBJECT_CATALOG[0];
+  const dispCode=S.code.replace(/^M/,'');
   const focus=curPObj().filter(o=>(TS().conf[o[0]]||0)<2).slice(0,3);
   return `<div class="card">
     <div class="row">
       <div class="grade-box num">${grd}</div>
       <div style="flex:1;min-width:0">
         <div class="eyebrow" style="color:var(--orange)">Predicted grade</div>
-        <div class="ttl num">${avg}% average across 21 topics</div>
-        <div class="sub" style="margin-top:2px">Illustrative estimate averaged across all 21 dedicated O Level 5054 topic pages.</div>
+        <div class="ttl num">${avg}% average across ${totalPages} topics</div>
+        <div class="sub" style="margin-top:2px">Illustrative estimate averaged across all ${totalPages} dedicated O Level ${meta.name} (${S.subj}) topic pages.</div>
       </div>
     </div>
     <div class="gscale">
@@ -4336,7 +4389,7 @@ function renderProgress(){
     </div>
   </div>
   <div class="card" style="display:flex;flex-direction:column;gap:14px">
-    <div class="between"><h3>Topic ${S.code} breakdown</h3><span class="pill p-lav num">${mast}% mastery</span></div>
+    <div class="between"><h3>Topic ${dispCode} breakdown</h3><span class="pill p-lav num">${mast}% mastery</span></div>
     <div class="pbar-row">
       <div class="between"><span class="sub"><b>Objectives confident</b> (25%)</span><span class="sub num">${Math.round(os.score*100)}%</span></div>
       <div class="bar"><div class="bar-fill" style="width:${Math.round(os.score*100)}%;background:var(--green)"></div></div>
@@ -4362,7 +4415,7 @@ function renderProgress(){
         <span class="pill p-lav num">${o[0]}</span>
         <span style="flex:1;font-size:13px">${esc(o[1])}</span>
       </button>`).join('')}
-    </div>`:`<p class="sub" style="margin:8px 0 0">Every syllabus objective in Topic ${S.code} is marked confident!</p>`}
+    </div>`:`<p class="sub" style="margin:8px 0 0">Every syllabus objective in Topic ${dispCode} is marked confident!</p>`}
   </div>`;
 }
 
@@ -4493,14 +4546,15 @@ function wireTopic(){
 }
 
 function render(){
+  if(S.scr==='subjects') S.scr='home';
   renderTopbar();
   const main=document.getElementById('main');
   if(S.scr==='home'){
+    main.innerHTML=renderAllSubjectsHome();
+    wireAllSubjectsHome();
+  }else if(S.scr==='subject'){
     main.innerHTML=renderHome();
     wireHome();
-  }else if(S.scr==='subjects'){
-    main.innerHTML=renderSubjects();
-    wireSubjects();
   }else{
     let body='';
     if(S.sec==='objectives') body=renderObjectives();
